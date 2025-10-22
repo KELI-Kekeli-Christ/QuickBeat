@@ -1,0 +1,1517 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuickBeat - Apprendre à taper en musique</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            overflow-x: hidden;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            background-size: 400% 400%;
+            animation: gradientMove 15s ease infinite;
+            color: #fff;
+            min-height: 100vh;
+        }
+
+        @keyframes gradientMove {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        #canvas-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .screen {
+            display: none;
+            width: 100vw;
+            min-height: 100vh;
+            position: relative;
+            z-index: 1;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        #menu-screen {
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        #difficulty-screen, #game-screen, #results-screen {
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        #menu-screen, #difficulty-screen {
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            padding: 2rem;
+            padding-bottom: 4rem;
+        }
+
+        #difficulty-screen, #results-screen {
+            justify-content: center;
+        }
+
+        .logo {
+            font-size: clamp(3rem, 8vw, 5rem);
+            font-weight: bold;
+            margin-bottom: 2rem;
+            margin-top: 2rem;
+            text-shadow: 0 0 30px rgba(255,255,255,0.8);
+            animation: pulse 2s infinite, floatLogo 3s ease-in-out infinite;
+        }
+
+        @keyframes floatLogo {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-20px) scale(1.05); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.08); }
+        }
+
+        .subtitle {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            margin-bottom: 1rem;
+            opacity: 0.95;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            text-align: center;
+            padding: 0 1rem;
+        }
+
+        .tutorial {
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(15px);
+            border-radius: 25px;
+            padding: clamp(1.5rem, 4vw, 2.5rem);
+            margin-bottom: 2rem;
+            max-width: 750px;
+            width: 90%;
+            border: 2px solid rgba(255,255,255,0.3);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .tutorial h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            margin-bottom: 1.5rem;
+            color: #ffd93d;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        .tutorial-steps {
+            text-align: left;
+            margin-top: 1rem;
+        }
+
+        .tutorial-step {
+            display: flex;
+            align-items: center;
+            margin: 1.2rem 0;
+            font-size: clamp(1rem, 2vw, 1.15rem);
+        }
+
+        .tutorial-step-icon {
+            font-size: clamp(1.8rem, 3vw, 2.2rem);
+            margin-right: 1.2rem;
+            min-width: 50px;
+            text-align: center;
+        }
+
+        .keyboard-selector {
+            display: flex;
+            gap: clamp(1rem, 3vw, 2rem);
+            margin: 2rem 0;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .keyboard-option {
+            background: rgba(255,255,255,0.2);
+            border: 3px solid rgba(255,255,255,0.4);
+            border-radius: 20px;
+            padding: clamp(1.5rem, 3vw, 2rem) clamp(2rem, 4vw, 3rem);
+            cursor: pointer;
+            transition: all 0.3s;
+            backdrop-filter: blur(10px);
+            font-size: clamp(1.2rem, 2.5vw, 1.5rem);
+            font-weight: bold;
+            animation: scaleIn 0.5s ease-out;
+        }
+
+        @keyframes scaleIn {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .keyboard-option:hover {
+            transform: scale(1.1);
+            background: rgba(255,255,255,0.3);
+        }
+
+        .keyboard-option.selected {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-color: #fff;
+            box-shadow: 0 0 30px rgba(102,126,234,0.6);
+        }
+
+        .difficulty-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: clamp(1.5rem, 3vw, 2.5rem);
+            margin-bottom: 2rem;
+            max-width: 1000px;
+            width: 90%;
+            padding: 0 1rem;
+        }
+
+        .diff-card {
+            background: rgba(255,255,255,0.15);
+            border: 3px solid rgba(255,255,255,0.4);
+            border-radius: 25px;
+            padding: clamp(1.5rem, 3vw, 2.5rem);
+            cursor: pointer;
+            transition: all 0.4s;
+            backdrop-filter: blur(15px);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        .diff-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255,255,255,0.15), transparent);
+            transform: rotate(45deg);
+            transition: all 0.6s;
+        }
+
+        .diff-card:hover::before {
+            left: 100%;
+        }
+
+        .diff-card:hover {
+            transform: translateY(-15px) scale(1.05);
+            background: rgba(255,255,255,0.25);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            border-color: rgba(255,255,255,0.7);
+        }
+
+        .diff-card h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            margin-bottom: 1rem;
+        }
+
+        .diff-card p {
+            opacity: 0.9;
+            font-size: clamp(1rem, 2vw, 1.15rem);
+            margin-bottom: 1rem;
+        }
+
+        .diff-badge {
+            display: inline-block;
+            padding: 0.5rem 1.5rem;
+            border-radius: 20px;
+            font-weight: bold;
+            margin-top: 0.5rem;
+            font-size: clamp(0.8rem, 1.5vw, 0.9rem);
+        }
+
+        .diff-badge.easy {
+            background: #4ecdc4;
+        }
+
+        .diff-badge.medium {
+            background: #f7b731;
+        }
+
+        .diff-badge.hard {
+            background: #ff6b6b;
+        }
+
+        #game-screen {
+            flex-direction: column;
+        }
+
+        .game-header {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 1rem;
+            padding: 1.5rem 2rem;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(15px);
+            border-bottom: 3px solid rgba(255,255,255,0.2);
+        }
+
+        .stat {
+            text-align: center;
+            font-size: 1.3rem;
+            font-weight: bold;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .stat-icon {
+            font-size: 2rem;
+            animation: float 2s infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            color: #ffd93d;
+        }
+
+        .timer {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #4ecdc4;
+        }
+
+        .timer.warning {
+            color: #ff6b6b;
+            animation: blink 0.5s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .game-area {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .tracks {
+            display: flex;
+            height: 100%;
+            justify-content: center;
+            align-items: flex-end;
+            padding: clamp(1rem, 2vw, 2rem);
+            gap: clamp(5px, 1vw, 15px);
+            flex-wrap: nowrap;
+            overflow-x: auto;
+        }
+
+        .track {
+            width: clamp(60px, 10vw, 90px);
+            min-width: 60px;
+            height: 100%;
+            position: relative;
+            border: clamp(2px, 0.5vw, 4px) solid;
+            border-radius: 15px;
+            box-shadow: inset 0 0 30px rgba(0,0,0,0.3), 0 0 30px;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .track::after {
+            content: '';
+            position: absolute;
+            bottom: clamp(60px, 12vw, 80px);
+            left: 0;
+            right: 0;
+            height: clamp(4px, 1vw, 8px);
+            background: rgba(255,255,255,0.6);
+            box-shadow: 0 0 20px rgba(255,255,255,0.8);
+            z-index: 10;
+        }
+
+        .track:nth-child(1) {
+            background: linear-gradient(180deg, rgba(255,107,107,0.2), rgba(255,107,107,0.4));
+            border-color: #ff6b6b;
+            box-shadow: inset 0 0 30px rgba(255,107,107,0.3), 0 0 30px rgba(255,107,107,0.5);
+        }
+
+        .track:nth-child(2) {
+            background: linear-gradient(180deg, rgba(247,183,49,0.2), rgba(247,183,49,0.4));
+            border-color: #f7b731;
+            box-shadow: inset 0 0 30px rgba(247,183,49,0.3), 0 0 30px rgba(247,183,49,0.5);
+        }
+
+        .track:nth-child(3) {
+            background: linear-gradient(180deg, rgba(78,205,196,0.2), rgba(78,205,196,0.4));
+            border-color: #4ecdc4;
+            box-shadow: inset 0 0 30px rgba(78,205,196,0.3), 0 0 30px rgba(78,205,196,0.5);
+        }
+
+        .track:nth-child(4) {
+            background: linear-gradient(180deg, rgba(102,126,234,0.2), rgba(102,126,234,0.4));
+            border-color: #667eea;
+            box-shadow: inset 0 0 30px rgba(102,126,234,0.3), 0 0 30px rgba(102,126,234,0.5);
+        }
+
+        .track:nth-child(5) {
+            background: linear-gradient(180deg, rgba(240,147,251,0.2), rgba(240,147,251,0.4));
+            border-color: #f093fb;
+            box-shadow: inset 0 0 30px rgba(240,147,251,0.3), 0 0 30px rgba(240,147,251,0.5);
+        }
+
+        .track:nth-child(6) {
+            background: linear-gradient(180deg, rgba(95,39,205,0.2), rgba(95,39,205,0.4));
+            border-color: #5f27cd;
+            box-shadow: inset 0 0 30px rgba(95,39,205,0.3), 0 0 30px rgba(95,39,205,0.5);
+        }
+
+        .track:nth-child(7) {
+            background: linear-gradient(180deg, rgba(255,159,243,0.2), rgba(255,159,243,0.4));
+            border-color: #ff9ff3;
+            box-shadow: inset 0 0 30px rgba(255,159,243,0.3), 0 0 30px rgba(255,159,243,0.5);
+        }
+
+        .track:nth-child(8) {
+            background: linear-gradient(180deg, rgba(69,183,209,0.2), rgba(69,183,209,0.4));
+            border-color: #45b7d1;
+            box-shadow: inset 0 0 30px rgba(69,183,209,0.3), 0 0 30px rgba(69,183,209,0.5);
+        }
+
+        .track-key {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 65px;
+            height: 65px;
+            background: rgba(0,0,0,0.7);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            font-weight: bold;
+            border: 3px solid rgba(255,255,255,0.6);
+            transition: all 0.1s;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
+
+        .track-key.active {
+            background: linear-gradient(135deg, #ffd93d, #ffb300);
+            color: #000;
+            transform: translateX(-50%) scale(1.25);
+            box-shadow: 0 0 40px rgba(255,217,61,0.9);
+        }
+
+        .note {
+            position: absolute;
+            width: 80px;
+            left: 5px;
+            border-radius: 12px;
+            background: linear-gradient(180deg, #ff6b6b, #ee5a6f);
+            border: 3px solid #fff;
+            box-shadow: 0 0 25px rgba(255,107,107,0.7);
+            animation: noteGlow 1s infinite;
+        }
+
+        @keyframes noteGlow {
+            0%, 100% { box-shadow: 0 0 25px rgba(255,107,107,0.7); }
+            50% { box-shadow: 0 0 40px rgba(255,107,107,1); }
+        }
+
+        .note.long {
+            background: linear-gradient(180deg, #ffd93d, #ffb300);
+            box-shadow: 0 0 25px rgba(255,217,61,0.7);
+        }
+
+        .note.long::after {
+            content: '⭐';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2.5rem;
+            animation: rotate 2s linear infinite;
+        }
+
+        @keyframes rotate {
+            from { transform: translate(-50%, -50%) rotate(0deg); }
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        .particle {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: particle-float 1s forwards;
+        }
+
+        @keyframes particle-float {
+            0% {
+                transform: translate(0, 0) scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(var(--tx), var(--ty)) scale(0);
+                opacity: 0;
+            }
+        }
+
+        .hit-indicator {
+            position: absolute;
+            font-size: 2.8rem;
+            font-weight: bold;
+            pointer-events: none;
+            animation: hit-rise 1s forwards;
+            text-shadow: 0 0 15px rgba(255,255,255,1);
+            z-index: 100;
+        }
+
+        @keyframes hit-rise {
+            0% {
+                transform: translateY(0) scale(1) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-120px) scale(1.8) rotate(15deg);
+                opacity: 0;
+            }
+        }
+
+        .dancer {
+            position: fixed;
+            bottom: clamp(20px, 3vw, 30px);
+            right: clamp(20px, 3vw, 30px);
+            width: clamp(80px, 15vw, 120px);
+            height: clamp(80px, 15vw, 120px);
+            z-index: 1000;
+            display: none;
+        }
+
+        .dancer.show {
+            display: block;
+            animation: dancerEntrance 0.5s, shake 3s ease-in-out infinite;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(5deg); }
+            75% { transform: rotate(-5deg); }
+        }
+
+        .dancer-body {
+            width: 100%;
+            height: 100%;
+            font-size: clamp(4rem, 10vw, 6rem);
+            text-align: center;
+            animation: dance 0.4s infinite;
+            filter: drop-shadow(0 10px 20px rgba(0,0,0,0.5));
+        }
+
+        .dancer-body.rainbow {
+            animation: dance 0.4s infinite, rainbow 2s infinite;
+        }
+
+        @keyframes dance {
+            0%, 100% { transform: rotate(-15deg) translateY(0); }
+            25% { transform: rotate(15deg) translateY(-15px); }
+            50% { transform: rotate(-15deg) translateY(0); }
+            75% { transform: rotate(15deg) translateY(-15px); }
+        }
+
+        @keyframes rainbow {
+            0% { filter: hue-rotate(0deg) drop-shadow(0 10px 20px rgba(0,0,0,0.5)); }
+            100% { filter: hue-rotate(360deg) drop-shadow(0 10px 20px rgba(0,0,0,0.5)); }
+        }
+
+        #results-screen {
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .results-container {
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(20px);
+            border-radius: 30px;
+            padding: 3rem;
+            text-align: center;
+            max-width: 600px;
+            border: 3px solid rgba(255,255,255,0.3);
+            box-shadow: 0 15px 50px rgba(0,0,0,0.3);
+        }
+
+        .results-title {
+            font-size: 3.5rem;
+            margin-bottom: 2rem;
+            animation: pulse 2s infinite;
+        }
+
+        .results-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .result-stat {
+            background: rgba(255,255,255,0.15);
+            padding: 1.5rem;
+            border-radius: 15px;
+            transition: all 0.3s;
+            border: 2px solid rgba(255,255,255,0.2);
+        }
+
+        .result-stat:hover {
+            transform: scale(1.08);
+            background: rgba(255,255,255,0.25);
+        }
+
+        .result-stat-value {
+            font-size: 2.8rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            color: #ffd93d;
+        }
+
+        .result-stat-label {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .btn {
+            padding: 1.2rem 3.5rem;
+            font-size: 1.5rem;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            margin: 0.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.7rem;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.5s, height 0.5s;
+        }
+
+        .btn:hover::before {
+            width: 350px;
+            height: 350px;
+        }
+
+        .btn:hover {
+            transform: scale(1.1) translateY(-3px);
+            box-shadow: 0 10px 35px rgba(0,0,0,0.4);
+        }
+
+        .btn-back {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
+        }
+
+        .encouragement {
+            position: fixed;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 4.5rem;
+            font-weight: bold;
+            text-shadow: 0 0 40px rgba(255,255,255,1);
+            pointer-events: none;
+            animation: encourage 2s forwards;
+            z-index: 1000;
+        }
+
+        @keyframes encourage {
+            0% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.3) rotate(-15deg);
+            }
+            50% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1.3) rotate(5deg);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(1) rotate(0deg);
+            }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas-bg"></canvas>
+
+    <div id="menu-screen" class="screen active">
+        <div class="logo">🎵 QuickBeat</div>
+        <div class="subtitle">Apprendre à taper en créant de la musique</div>
+        
+        <div class="tutorial">
+            <h3>📖 Comment jouer ?</h3>
+            <div class="tutorial-steps">
+                <div class="tutorial-step">
+                    <div class="tutorial-step-icon">1️⃣</div>
+                    <div>Les notes tombent du haut sur 8 pistes colorées</div>
+                </div>
+                <div class="tutorial-step">
+                    <div class="tutorial-step-icon">2️⃣</div>
+                    <div>Appuyez sur la touche quand la note atteint la barre blanche</div>
+                </div>
+                <div class="tutorial-step">
+                    <div class="tutorial-step-icon">3️⃣</div>
+                    <div>Les notes dorées (⭐) valent 2x plus de points</div>
+                </div>
+                <div class="tutorial-step">
+                    <div class="tutorial-step-icon">4️⃣</div>
+                    <div>Enchaînez les notes pour augmenter votre combo 🔥</div>
+                </div>
+                <div class="tutorial-step">
+                    <div class="tutorial-step-icon">⏱️</div>
+                    <div>Survivez 30 secondes et maximisez votre score !</div>
+                </div>
+            </div>
+        </div>
+
+        <h3 style="margin-bottom: 1rem;">⌨️ Choisissez votre type de clavier</h3>
+        <div class="keyboard-selector">
+            <div class="keyboard-option selected" data-keyboard="azerty">
+                <span>AZERTY</span>
+            </div>
+            <div class="keyboard-option" data-keyboard="qwerty">
+                <span>QWERTY</span>
+            </div>
+        </div>
+
+        <button class="btn" id="start-btn">
+            <span>▶️</span> Commencer
+        </button>
+    </div>
+
+    <div id="difficulty-screen" class="screen">
+        <div class="logo">🎵 QuickBeat</div>
+        <h2 style="font-size: 2rem; margin-bottom: 2rem;">Choisissez votre niveau</h2>
+        
+        <div class="difficulty-grid">
+            <div class="diff-card" data-difficulty="easy">
+                <h3>🌟 Premier Pas</h3>
+                <p>Apprenez les bases du rythme et du clavier</p>
+                <span class="diff-badge easy">FACILE</span>
+            </div>
+            <div class="diff-card" data-difficulty="medium">
+                <h3>⚡ Rythme Électro</h3>
+                <p>Motifs complexes avec accords</p>
+                <span class="diff-badge medium">MOYEN</span>
+            </div>
+            <div class="diff-card" data-difficulty="hard">
+                <h3>🔥 Vitesse Extrême</h3>
+                <p>Test de rapidité extrême</p>
+                <span class="diff-badge hard">DIFFICILE</span>
+            </div>
+        </div>
+
+        <button class="btn btn-back" id="back-menu-btn">
+            <span>⬅️</span> Retour
+        </button>
+    </div>
+
+    <div id="game-screen" class="screen">
+        <div class="game-header">
+            <div class="stat">
+                <span class="stat-icon">🎯</span>
+                <span class="stat-label">Notes</span>
+                <span class="stat-value" id="hits">0</span>
+            </div>
+            <div class="stat">
+                <span class="stat-icon">🏆</span>
+                <span class="stat-label">Score</span>
+                <span class="stat-value" id="score">0</span>
+            </div>
+            <div class="stat">
+                <span class="stat-icon">🔥</span>
+                <span class="stat-label">Combo</span>
+                <span class="stat-value" id="combo">0</span>
+            </div>
+            <div class="stat">
+                <span class="stat-icon">📊</span>
+                <span class="stat-label">Précision</span>
+                <span class="stat-value" id="accuracy">100%</span>
+            </div>
+            <div class="stat">
+                <span class="stat-icon">⏱️</span>
+                <span class="stat-label">Temps</span>
+                <span class="stat-value timer" id="timer">30s</span>
+            </div>
+        </div>
+        <div class="game-area">
+            <div class="tracks" id="tracks"></div>
+        </div>
+    </div>
+
+    <div class="dancer" id="dancer">
+        <div class="dancer-body" id="dancer-body">💃</div>
+    </div>
+
+    <div id="results-screen" class="screen">
+        <div class="results-container">
+            <div class="results-title">🎉 Résultats</div>
+            <div class="results-stats">
+                <div class="result-stat">
+                    <div class="result-stat-value" id="final-hits">0</div>
+                    <div class="result-stat-label">Notes Touchées</div>
+                </div>
+                <div class="result-stat">
+                    <div class="result-stat-value" id="final-score">0</div>
+                    <div class="result-stat-label">Score Final</div>
+                </div>
+                <div class="result-stat">
+                    <div class="result-stat-value" id="final-combo">0</div>
+                    <div class="result-stat-label">Meilleur Combo</div>
+                </div>
+                <div class="result-stat">
+                    <div class="result-stat-value" id="final-accuracy">0%</div>
+                    <div class="result-stat-label">Précision</div>
+                </div>
+            </div>
+            <div>
+                <button class="btn" id="menu-btn">
+                    <span>🏠</span> Menu Principal
+                </button>
+                <button class="btn" id="restart-btn">
+                    <span>🔄</span> Rejouer
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const KEYBOARD_LAYOUTS = {
+            azerty: ['A', 'Z', 'E', 'R', 'T', 'Y', 'U', 'I'],
+            qwerty: ['A', 'S', 'D', 'F', 'J', 'K', 'L', ';']
+        };
+
+        const FREQUENCIES = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25];
+        
+        let gameState = {
+            keyboard: 'azerty',
+            difficulty: 'easy',
+            score: 0,
+            combo: 0,
+            maxCombo: 0,
+            hits: 0,
+            misses: 0,
+            timeLeft: 30,
+            notes: [],
+            noteId: 0,
+            gameRunning: false
+        };
+
+        let audioContext;
+        let gameInterval;
+        let timerInterval;
+        let lastDifficultyPlayed = 'easy';
+        let musicOscillators = [];
+        let musicGain = null;
+
+        const musicNotes = [
+            [261.63, 329.63, 392.00, 523.25],
+            [293.66, 349.23, 440.00, 587.33],
+            [329.63, 392.00, 493.88, 659.25],
+            [349.23, 440.00, 523.25, 698.46]
+        ];
+
+        const patterns = {
+            easy: [
+                {keys: [0], delay: 1500, long: false},
+                {keys: [2], delay: 1500, long: false},
+                {keys: [4], delay: 1500, long: false},
+                {keys: [6], delay: 1500, long: true},
+                {keys: [1, 3], delay: 1500, long: false},
+                {keys: [5, 7], delay: 1500, long: false}
+            ],
+            medium: [
+                {keys: [0, 2], delay: 1000, long: false},
+                {keys: [1, 3], delay: 1000, long: false},
+                {keys: [4, 6], delay: 1000, long: true},
+                {keys: [2, 4, 6], delay: 1000, long: false},
+                {keys: [1, 3, 5], delay: 1000, long: false}
+            ],
+            hard: [
+                {keys: [0, 1, 2], delay: 600, long: false},
+                {keys: [3, 4, 5], delay: 600, long: false},
+                {keys: [6, 7], delay: 600, long: true},
+                {keys: [0, 2, 4, 6], delay: 600, long: false},
+                {keys: [1, 3, 5, 7], delay: 600, long: true}
+            ]
+        };
+
+        const canvas = document.getElementById('canvas-bg');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let bgParticles = [];
+        let musicIcons = [];
+        let spheres = [];
+
+        for (let i = 0; i < 50; i++) {
+            bgParticles.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                size: Math.random() * 8 + 3,
+                vx: (Math.random() - 0.5) * 0.5,
+                vy: (Math.random() - 0.5) * 0.5,
+                color: `hsla(${Math.random() * 60 + 240}, 70%, 60%, 0.6)`
+            });
+        }
+
+        const musicSymbols = ['♪', '♫', '♬', '🎵', '🎶'];
+        for (let i = 0; i < 15; i++) {
+            musicIcons.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                symbol: musicSymbols[Math.floor(Math.random() * musicSymbols.length)],
+                vy: Math.random() * 0.3 + 0.2,
+                opacity: Math.random() * 0.3 + 0.2,
+                rotation: Math.random() * Math.PI * 2
+            });
+        }
+
+        for (let i = 0; i < 8; i++) {
+            spheres.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                radius: Math.random() * 50 + 30,
+                vx: (Math.random() - 0.5) * 2,
+                vy: (Math.random() - 0.5) * 2,
+                color: `hsla(${Math.random() * 60 + 240}, 70%, 60%, 0.15)`,
+                pulsePhase: Math.random() * Math.PI * 2
+            });
+        }
+
+        let sparkles = [];
+        
+        function createSparkles() {
+            if (Math.random() < 0.05) {
+                sparkles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    life: 1,
+                    size: Math.random() * 3 + 2
+                });
+            }
+        }
+
+        function animateBackground() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            createSparkles();
+
+            sparkles = sparkles.filter(sparkle => {
+                sparkle.life -= 0.01;
+                const alpha = sparkle.life;
+                ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                ctx.beginPath();
+                ctx.arc(sparkle.x, sparkle.y, sparkle.size, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                
+                return sparkle.life > 0;
+            });
+
+            bgParticles.forEach(p => {
+                p.x += p.vx;
+                p.y += p.vy;
+
+                if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+
+                if (gameState.gameRunning) {
+                    ctx.shadowBlur = 20;
+                    ctx.shadowColor = p.color;
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                }
+            });
+
+            musicIcons.forEach(icon => {
+                icon.y += icon.vy;
+                icon.rotation += 0.02;
+
+                if (icon.y > canvas.height + 50) {
+                    icon.y = -50;
+                    icon.x = Math.random() * canvas.width;
+                }
+
+                ctx.save();
+                ctx.translate(icon.x, icon.y);
+                ctx.rotate(icon.rotation);
+                ctx.globalAlpha = icon.opacity;
+                ctx.font = '30px Arial';
+                ctx.fillStyle = '#fff';
+                ctx.textAlign = 'center';
+                ctx.fillText(icon.symbol, 0, 0);
+                ctx.restore();
+            });
+
+            spheres.forEach(sphere => {
+                sphere.x += sphere.vx;
+                sphere.y += sphere.vy;
+                sphere.pulsePhase += 0.02;
+
+                if (sphere.x - sphere.radius < 0 || sphere.x + sphere.radius > canvas.width) {
+                    sphere.vx *= -1;
+                }
+                if (sphere.y - sphere.radius < 0 || sphere.y + sphere.radius > canvas.height) {
+                    sphere.vy *= -1;
+                }
+
+                if (gameState.gameRunning) {
+                    sphere.vx *= 1.01;
+                    sphere.vy *= 1.01;
+                    sphere.vx = Math.max(-3, Math.min(3, sphere.vx));
+                    sphere.vy = Math.max(-3, Math.min(3, sphere.vy));
+                }
+
+                const pulseFactor = 1 + Math.sin(sphere.pulsePhase) * 0.2;
+                const currentRadius = sphere.radius * pulseFactor;
+
+                const gradient = ctx.createRadialGradient(
+                    sphere.x, sphere.y, 0,
+                    sphere.x, sphere.y, currentRadius
+                );
+                gradient.addColorStop(0, sphere.color.replace('0.15', '0.3'));
+                gradient.addColorStop(1, 'transparent');
+
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(sphere.x, sphere.y, currentRadius, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            requestAnimationFrame(animateBackground);
+        }
+
+        animateBackground();
+
+        function initAudio() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function startBackgroundMusic() {
+            if (!audioContext) return;
+            
+            stopBackgroundMusic();
+            
+            musicGain = audioContext.createGain();
+            musicGain.gain.value = 0.12;
+            musicGain.connect(audioContext.destination);
+            
+            let noteIndex = 0;
+            
+            function playMusicNote() {
+                if (!gameState.gameRunning) return;
+                
+                const chord = musicNotes[noteIndex % musicNotes.length];
+                noteIndex++;
+                
+                chord.forEach((freq, i) => {
+                    const osc = audioContext.createOscillator();
+                    const oscGain = audioContext.createGain();
+                    
+                    osc.connect(oscGain);
+                    oscGain.connect(musicGain);
+                    
+                    osc.frequency.value = freq;
+                    osc.type = 'sine';
+                    
+                    oscGain.gain.setValueAtTime(0.08, audioContext.currentTime);
+                    oscGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.8);
+                    
+                    osc.start(audioContext.currentTime);
+                    osc.stop(audioContext.currentTime + 0.8);
+                    
+                    musicOscillators.push(osc);
+                });
+                
+                setTimeout(playMusicNote, 800);
+            }
+            
+            playMusicNote();
+        }
+
+        function stopBackgroundMusic() {
+            musicOscillators.forEach(osc => {
+                try {
+                    osc.stop();
+                } catch(e) {}
+            });
+            musicOscillators = [];
+            
+            if (musicGain) {
+                musicGain.disconnect();
+                musicGain = null;
+            }
+        }
+
+        function playSound(frequency, duration = 0.2) {
+            if (!audioContext) return;
+
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            
+            osc.frequency.value = frequency;
+            osc.type = 'sine';
+            
+            gain.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+            
+            osc.start(audioContext.currentTime);
+            osc.stop(audioContext.currentTime + duration);
+        }
+
+        function createTracks() {
+            const tracksContainer = document.getElementById('tracks');
+            tracksContainer.innerHTML = '';
+            
+            const keys = KEYBOARD_LAYOUTS[gameState.keyboard];
+            
+            keys.forEach((key, i) => {
+                const track = document.createElement('div');
+                track.className = 'track';
+                track.id = `track-${i}`;
+                
+                const keyDisplay = document.createElement('div');
+                keyDisplay.className = 'track-key';
+                keyDisplay.textContent = key;
+                keyDisplay.id = `key-${i}`;
+                
+                track.appendChild(keyDisplay);
+                tracksContainer.appendChild(track);
+            });
+        }
+
+        function startGame(difficulty) {
+            initAudio();
+            lastDifficultyPlayed = difficulty;
+            
+            gameState = {
+                keyboard: gameState.keyboard,
+                difficulty: difficulty,
+                score: 0,
+                combo: 0,
+                maxCombo: 0,
+                hits: 0,
+                misses: 0,
+                timeLeft: 30,
+                notes: [],
+                noteId: 0,
+                gameRunning: true
+            };
+
+            document.getElementById('difficulty-screen').classList.remove('active');
+            document.getElementById('game-screen').classList.add('active');
+
+            createTracks();
+            updateUI();
+            startGameLoop();
+            startTimer();
+            startBackgroundMusic();
+        }
+
+        function startGameLoop() {
+            const pattern = patterns[gameState.difficulty];
+            let patternIndex = 0;
+
+            function spawnNotes() {
+                if (!gameState.gameRunning) return;
+
+                const currentPattern = pattern[patternIndex % pattern.length];
+                patternIndex++;
+
+                currentPattern.keys.forEach(keyIndex => {
+                    createNote(keyIndex, currentPattern.long);
+                });
+
+                gameInterval = setTimeout(spawnNotes, currentPattern.delay);
+            }
+
+            spawnNotes();
+        }
+
+        function createNote(trackIndex, isLong) {
+            const track = document.getElementById(`track-${trackIndex}`);
+            if (!track) return;
+            
+            const note = document.createElement('div');
+            note.className = isLong ? 'note long' : 'note';
+            note.id = `note-${gameState.noteId++}`;
+            
+            const height = isLong ? 150 : 80;
+            note.style.height = height + 'px';
+            note.style.top = '-' + height + 'px';
+            
+            track.appendChild(note);
+
+            const noteData = {
+                element: note,
+                trackIndex: trackIndex,
+                isLong: isLong,
+                hit: false,
+                startY: -height
+            };
+
+            gameState.notes.push(noteData);
+            animateNote(noteData);
+        }
+
+        function animateNote(noteData) {
+            let currentY = noteData.startY;
+            const speed = gameState.difficulty === 'hard' ? 5 : gameState.difficulty === 'medium' ? 3.5 : 2.5;
+
+            function move() {
+                if (!gameState.gameRunning || noteData.hit) {
+                    if (noteData.element && noteData.element.parentNode) {
+                        noteData.element.parentNode.removeChild(noteData.element);
+                    }
+                    gameState.notes = gameState.notes.filter(n => n !== noteData);
+                    return;
+                }
+
+                currentY += speed;
+                if (noteData.element) {
+                    noteData.element.style.top = currentY + 'px';
+                }
+
+                const track = document.getElementById(`track-${noteData.trackIndex}`);
+                if (!track) return;
+                
+                const trackHeight = track.offsetHeight;
+
+                if (currentY > trackHeight) {
+                    if (!noteData.hit) {
+                        miss();
+                        if (noteData.element && noteData.element.parentNode) {
+                            noteData.element.parentNode.removeChild(noteData.element);
+                        }
+                        gameState.notes = gameState.notes.filter(n => n !== noteData);
+                        return;
+                    }
+                }
+
+                requestAnimationFrame(move);
+            }
+
+            move();
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (!gameState.gameRunning) return;
+
+            const key = e.key.toUpperCase();
+            const keys = KEYBOARD_LAYOUTS[gameState.keyboard];
+            const keyIndex = keys.indexOf(key);
+
+            if (keyIndex === -1) return;
+
+            const keyElement = document.getElementById(`key-${keyIndex}`);
+            if (keyElement) {
+                keyElement.classList.add('active');
+            }
+
+            playSound(FREQUENCIES[keyIndex]);
+
+            const notesOnTrack = gameState.notes.filter(n => 
+                n.trackIndex === keyIndex && !n.hit
+            );
+
+            if (notesOnTrack.length > 0) {
+                const note = notesOnTrack[0];
+                const track = document.getElementById(`track-${keyIndex}`);
+                if (!track) return;
+                
+                const trackHeight = track.offsetHeight;
+                const noteY = parseInt(note.element.style.top);
+
+                if (noteY > trackHeight - 130 && noteY < trackHeight - 50) {
+                    hit(note);
+                }
+            }
+
+            createParticles(keyIndex);
+        });
+
+        document.addEventListener('keyup', (e) => {
+            const key = e.key.toUpperCase();
+            const keys = KEYBOARD_LAYOUTS[gameState.keyboard];
+            const keyIndex = keys.indexOf(key);
+            if (keyIndex !== -1) {
+                const keyElement = document.getElementById(`key-${keyIndex}`);
+                if (keyElement) {
+                    keyElement.classList.remove('active');
+                }
+            }
+        });
+
+        function hit(noteData) {
+            noteData.hit = true;
+            const points = noteData.isLong ? 200 : 100;
+            gameState.score += Math.round(points * (1 + gameState.combo * 0.1));
+            gameState.combo++;
+            gameState.hits++;
+            gameState.maxCombo = Math.max(gameState.maxCombo, gameState.combo);
+
+            showHitIndicator(noteData.trackIndex, '+' + Math.round(points * (1 + gameState.combo * 0.1)));
+            updateUI();
+            updateDancer();
+
+            if (noteData.element && noteData.element.parentNode) {
+                noteData.element.parentNode.removeChild(noteData.element);
+            }
+        }
+
+        function miss() {
+            gameState.combo = 0;
+            gameState.misses++;
+            updateUI();
+            updateDancer();
+        }
+
+        function createParticles(trackIndex) {
+            const track = document.getElementById(`track-${trackIndex}`);
+            if (!track) return;
+            
+            const rect = track.getBoundingClientRect();
+            const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f7b731', '#5f27cd', '#ff9ff3', '#ffd93d'];
+
+            for (let i = 0; i < 25; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = rect.left + rect.width / 2 + 'px';
+                particle.style.bottom = '100px';
+                particle.style.background = colors[Math.floor(Math.random() * colors.length)];
+                particle.style.setProperty('--tx', (Math.random() - 0.5) * 300 + 'px');
+                particle.style.setProperty('--ty', -Math.random() * 300 - 50 + 'px');
+                document.body.appendChild(particle);
+
+                setTimeout(() => particle.remove(), 1000);
+            }
+        }
+
+        function showHitIndicator(trackIndex, text) {
+            const track = document.getElementById(`track-${trackIndex}`);
+            if (!track) return;
+            
+            const rect = track.getBoundingClientRect();
+            const indicator = document.createElement('div');
+            indicator.className = 'hit-indicator';
+            indicator.textContent = text;
+            indicator.style.left = rect.left + rect.width / 2 + 'px';
+            indicator.style.bottom = '180px';
+            indicator.style.color = gameState.combo > 10 ? '#ffd93d' : '#4ecdc4';
+            document.body.appendChild(indicator);
+
+            setTimeout(() => indicator.remove(), 1000);
+        }
+
+        function updateUI() {
+            document.getElementById('hits').textContent = gameState.hits;
+            document.getElementById('score').textContent = Math.round(gameState.score);
+            document.getElementById('combo').textContent = gameState.combo;
+            const accuracy = gameState.hits + gameState.misses > 0 
+                ? Math.round((gameState.hits / (gameState.hits + gameState.misses)) * 100)
+                : 100;
+            document.getElementById('accuracy').textContent = accuracy + '%';
+        }
+
+        function updateDancer() {
+            const dancer = document.getElementById('dancer');
+            const dancerBody = document.getElementById('dancer-body');
+            
+            if (gameState.combo >= 15) {
+                dancer.classList.add('show');
+                dancerBody.className = 'dancer-body';
+                
+                if (gameState.combo >= 25) {
+                    dancerBody.classList.add('rainbow');
+                }
+            } else {
+                dancer.classList.remove('show');
+            }
+        }
+
+        function startTimer() {
+            const timerElement = document.getElementById('timer');
+
+            timerInterval = setInterval(() => {
+                gameState.timeLeft--;
+                
+                timerElement.textContent = gameState.timeLeft + 's';
+
+                if (gameState.timeLeft <= 10) {
+                    timerElement.classList.add('warning');
+                }
+
+                if (gameState.timeLeft === 20) {
+                    showEncouragement('Excellent ! 🎵');
+                } else if (gameState.timeLeft === 10) {
+                    showEncouragement('Dernière ligne droite ! 🔥');
+                }
+
+                if (gameState.timeLeft <= 0) {
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        function showEncouragement(message) {
+            const enc = document.createElement('div');
+            enc.className = 'encouragement';
+            enc.textContent = message;
+            document.body.appendChild(enc);
+            setTimeout(() => enc.remove(), 2000);
+        }
+
+        function endGame() {
+            gameState.gameRunning = false;
+            clearTimeout(gameInterval);
+            clearInterval(timerInterval);
+            stopBackgroundMusic();
+
+            const accuracy = gameState.hits + gameState.misses > 0 
+                ? Math.round((gameState.hits / (gameState.hits + gameState.misses)) * 100)
+                : 100;
+
+            document.getElementById('final-hits').textContent = gameState.hits;
+            document.getElementById('final-score').textContent = Math.round(gameState.score);
+            document.getElementById('final-combo').textContent = gameState.maxCombo;
+            document.getElementById('final-accuracy').textContent = accuracy + '%';
+
+            document.getElementById('game-screen').classList.remove('active');
+            document.getElementById('results-screen').classList.add('active');
+            document.getElementById('dancer').classList.remove('show');
+            
+            document.getElementById('timer').classList.remove('warning');
+        }
+
+        function showMenu() {
+            document.getElementById('results-screen').classList.remove('active');
+            document.getElementById('menu-screen').classList.add('active');
+            
+            stopBackgroundMusic();
+        }
+
+        function showDifficultyScreen() {
+            document.getElementById('menu-screen').classList.remove('active');
+            document.getElementById('difficulty-screen').classList.add('active');
+        }
+
+        function backToMenu() {
+            document.getElementById('difficulty-screen').classList.remove('active');
+            document.getElementById('menu-screen').classList.add('active');
+        }
+
+        function restartGame() {
+            document.getElementById('results-screen').classList.remove('active');
+            startGame(lastDifficultyPlayed);
+        }
+
+        document.querySelectorAll('.keyboard-option').forEach(option => {
+            option.addEventListener('click', () => {
+                document.querySelectorAll('.keyboard-option').forEach(opt => {
+                    opt.classList.remove('selected');
+                });
+                option.classList.add('selected');
+                gameState.keyboard = option.getAttribute('data-keyboard');
+            });
+        });
+
+        document.getElementById('start-btn').addEventListener('click', showDifficultyScreen);
+
+        document.querySelectorAll('.diff-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const difficulty = card.getAttribute('data-difficulty');
+                startGame(difficulty);
+            });
+        });
+
+        document.getElementById('back-menu-btn').addEventListener('click', backToMenu);
+        document.getElementById('menu-btn').addEventListener('click', showMenu);
+        document.getElementById('restart-btn').addEventListener('click', restartGame);
+    </script>
+</body>
+</html>
